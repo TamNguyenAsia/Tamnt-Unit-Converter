@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Quy đổi tiền tệ theo tỷ giá trực tuyến và đổi đơn vị đo lường, dùng trên điện thoại.">
+<meta name="theme-color" content="#0B7558">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Đổi Nhanh">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+html{box-sizing:border-box;color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}img{max-width:100%}[hidden]{display:none!important}
+</style>
+<title>Đổi Nhanh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one-screen phone app — header, scrolling converter, docked calculator keypad, bottom tab bar */
+:root{
+  --bg:#EDF2EF; --surface:#FFFFFF; --sunk:#E2EAE6; --key:#F7FAF8; --line:#D2DDD7;
+  --ink:#0F2E28; --muted:#5B726B; --accent:#0B7558; --accent-ink:#FFFFFF;
+  --accent-soft:#D4ECE2; --warn:#A8620A; --warn-soft:#F6E6CC;
+  --shadow:0 1px 2px rgba(15,46,40,.06),0 10px 28px rgba(15,46,40,.08);
+  --font:"Be Vietnam Pro",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r:22px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0B1512; --surface:#13201C; --sunk:#0E1916; --key:#1A2A25; --line:#24372F;
+  --ink:#E3EEE9; --muted:#8FA79F; --accent:#3DC696; --accent-ink:#04211A;
+  --accent-soft:#15382E; --warn:#E7A84B; --warn-soft:#382912;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 10px 28px rgba(0,0,0,.28); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B1512; --surface:#13201C; --sunk:#0E1916; --key:#1A2A25; --line:#24372F;
+  --ink:#E3EEE9; --muted:#8FA79F; --accent:#3DC696; --accent-ink:#04211A;
+  --accent-soft:#15382E; --warn:#E7A84B; --warn-soft:#382912;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 10px 28px rgba(0,0,0,.28); color-scheme:dark}
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+*{box-sizing:border-box}
+button,input{font-family:inherit}
+button{font-size:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-user-select:none;user-select:none}
+button:focus-visible,input:focus-visible,a:focus-visible,.amt:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px}
+.num,.amt,.out,.row .v,.key{font-variant-numeric:tabular-nums}
+
+.app{height:100%;display:flex;flex-direction:column}
+.wrap{width:100%;max-width:520px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+header .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:12px 8px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:20px;letter-spacing:-.015em}
+.mark{width:30px;height:30px;border-radius:9px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:6px 11px;border-radius:99px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.stale{background:var(--warn-soft);color:var(--warn)}
+.pill.busy::before{animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.25}}
+
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0}
+main .wrap{padding-block:4px 20px;display:flex;flex-direction:column;gap:14px}
+
+/* converter card */
+.pair{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);position:relative}
+.side{padding:14px 18px 16px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.side+.side{border-top:1px solid var(--line)}
+.side.to{position:relative}
+.side-top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:20px}
+.lbl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.pick{display:inline-flex;align-items:center;gap:8px;padding:5px 10px 5px 8px;margin-left:-8px;border-radius:12px;min-width:0;max-width:calc(100% - 52px);text-align:left;align-self:flex-start}
+.pick:hover,.pick:active{background:var(--sunk)}
+.pick .flag{font-size:20px;line-height:1}
+.pick .code{font-weight:700;font-size:16px;white-space:nowrap}
+.pick .nm{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pick svg{flex:none;color:var(--muted)}
+.amt{display:flex;align-items:baseline;gap:2px;min-height:48px;padding-bottom:6px;font-weight:600;font-size:40px;line-height:1.15;letter-spacing:-.025em;cursor:text;word-break:break-all;flex-wrap:wrap;padding-right:52px}
+.amt .ph{color:var(--line)}
+.amt .op{color:var(--accent);padding:0 3px;font-weight:500}
+.amt .caret{display:inline-block;width:2px;height:.95em;background:var(--accent);align-self:center;margin-left:2px;animation:caret 1.05s steps(1) infinite}
+.amt:not(.on) .caret{visibility:hidden}
+@keyframes caret{50%{opacity:0}}
+.sub-eq{font-size:13px;color:var(--muted);min-height:0}
+.out{font-weight:700;font-size:40px;line-height:1.15;letter-spacing:-.025em;color:var(--accent);text-align:left;word-break:break-all;align-self:stretch}
+.amt.s,.out.s{font-size:31px}.amt.xs,.out.xs{font-size:24px}
+.swap{position:absolute;right:16px;top:-23px;width:46px;height:46px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 4px 14px rgba(11,117,88,.32);transition:transform .25s}
+.swap:active{transform:rotate(180deg)}
+.hint{font-size:12px;color:var(--muted)}
+
+.rate-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:0 4px}
+.rate-txt{font-size:14px;font-weight:600;min-width:0}
+.rate-txt small{display:block;font-size:12px;font-weight:400;color:var(--muted)}
+.btn-ghost{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--accent);padding:8px 12px;border-radius:11px;border:1px solid var(--line);background:var(--surface);text-decoration:none}
+.tag-own{font-size:11px;font-weight:600;color:var(--warn);background:var(--warn-soft);padding:2px 7px;border-radius:6px;margin-left:6px;vertical-align:1px}
+
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding:2px max(16px,env(safe-area-inset-left,0px))}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:8px 14px;border-radius:99px;background:var(--surface);border:1px solid var(--line);font-size:14px;font-weight:500;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.list-h{display:flex;align-items:baseline;justify-content:space-between;padding:4px 4px 0}
+.list-h h2{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0}
+.list{background:var(--surface);border-radius:var(--r);overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;width:100%;padding:13px 16px;text-align:left}
+.row+.row{border-top:1px solid var(--line)}
+.row:hover,.row:active{background:var(--sunk)}
+.row .c{font-weight:700;min-width:52px;flex:none;white-space:nowrap}
+.row .n{flex:1;min-width:0;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .v{font-weight:600;font-size:16px;text-align:right;word-break:break-all;max-width:58%}
+.row.on{background:var(--accent-soft)}
+
+.note{font-size:12px;color:var(--muted);padding:0 4px;line-height:1.6;margin:0}
+.links{display:flex;gap:8px;flex-wrap:wrap}
+
+/* keypad */
+.kp{background:var(--sunk);border-top:1px solid var(--line)}
+.kp .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding-block:8px}
+.key{height:46px;border-radius:13px;background:var(--key);font-size:21px;font-weight:500;display:grid;place-items:center;box-shadow:0 1px 0 var(--line)}
+.key:active{transform:scale(.96);filter:brightness(.95)}
+.key.op{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.key.fn{color:var(--muted);font-size:16px;font-weight:600}
+.key.eq{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.kp-show{display:flex;justify-content:center}
+.kp-show button{font-size:13px;font-weight:600;color:var(--accent);padding:8px 14px;display:flex;align-items:center;gap:6px}
+
+/* tab bar */
+nav{background:var(--surface);border-top:1px solid var(--line)}
+nav .wrap{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-block:6px}
+.tab{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 0;border-radius:14px;font-size:12px;font-weight:600;color:var(--muted)}
+.tab svg{width:23px;height:23px}
+.tab[aria-selected="true"]{color:var(--accent);background:var(--accent-soft)}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(5,18,14,.48);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:520px;max-height:84%;border-radius:22px 22px 0 0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px);animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.4}}
+@media (prefers-reduced-motion:reduce){.sheet,.amt .caret,.pill.busy::before{animation:none}.swap{transition:none}}
+.sheet-h{padding:10px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--line)}
+.grab{width:40px;height:4px;border-radius:4px;background:var(--line);align-self:center}
+.sheet-t{display:flex;justify-content:space-between;align-items:center}
+.sheet-t b{font-size:17px;font-weight:700}
+.x{width:36px;height:36px;border-radius:50%;background:var(--sunk);display:grid;place-items:center}
+.search{width:100%;border:1px solid var(--line);background:var(--sunk);color:var(--ink);border-radius:12px;padding:11px 14px;font-size:16px}
+.sheet-b{overflow-y:auto;flex:1}
+.sheet-b .row{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.rate-form{padding:18px max(16px,env(safe-area-inset-right,0px)) 22px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px}
+.rate-line{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600;flex-wrap:wrap}
+.rate-line input{flex:1;min-width:140px;border:1px solid var(--line);background:var(--sunk);color:var(--ink);border-radius:12px;padding:12px 14px;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.btn{padding:14px;border-radius:14px;font-weight:600;font-size:15px;text-align:center}
+.btn.pri{background:var(--accent);color:var(--accent-ink)}
+.btn.sec{background:var(--sunk)}
+
+.toast{position:fixed;left:50%;top:calc(64px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:99px;font-size:13px;font-weight:500;z-index:30;pointer-events:none;max-width:calc(100% - 32px);text-align:center}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header><div class="wrap">
+    <div class="brand"><span class="mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5"/></svg></span>Đổi Nhanh</div>
+    <button class="pill" id="ratePill" type="button" aria-label="Cập nhật tỷ giá">Tỷ giá</button>
+  </div></header>
+
+  <main id="main">
+    <!-- CURRENCY -->
+    <section id="vCur"><div class="wrap">
+      <div class="pair">
+        <div class="side from">
+          <div class="side-top"><span class="lbl">Bạn có</span></div>
+          <button class="pick" id="cFromBtn" type="button"></button>
+          <div class="amt" id="cAmt" tabindex="0" role="textbox" aria-label="Số tiền"></div>
+          <div class="sub-eq num" id="cEq"></div>
+        </div>
+        <div class="side to">
+          <button class="swap" id="cSwap" type="button" aria-label="Đảo chiều">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 20l-4-4M7 20l4-4M17 20V4M17 4l-4 4M17 4l4 4"/></svg>
+          </button>
+          <div class="side-top"><span class="lbl">Bạn nhận</span></div>
+          <button class="pick" id="cToBtn" type="button"></button>
+          <button class="out" id="cOut" type="button" aria-label="Kết quả, chạm để chép">0</button>
+        </div>
+      </div>
+
+      <div class="rate-row">
+        <div class="rate-txt num" id="cRate"></div>
+        <button class="btn-ghost" id="cRateBtn" type="button">Tỷ giá riêng</button>
+      </div>
+
+      <div class="chips" id="cQuick"></div>
+
+      <div class="list-h"><h2>Số tiền này bằng</h2><span class="hint">Chạm để chọn</span></div>
+      <div class="list" id="cList"></div>
+
+      <p class="note">Tỷ giá trung bình thị trường, tự cập nhật mỗi khi có mạng. Giá mua/bán ở ngân hàng chênh vài phần trăm; bấm <b>Tỷ giá riêng</b> để nhập đúng giá bạn được báo.</p>
+      <div class="links">
+        <a class="btn-ghost" href="https://www.vietcombank.com.vn/vi-VN/KHCN/Cong-cu-tien-ich/Ty-gia" target="_blank" rel="noopener">Tỷ giá Vietcombank ↗</a>
+        <a class="btn-ghost" id="gLink" href="https://www.google.com/search?q=USD+to+VND" target="_blank" rel="noopener">Xem trên Google ↗</a>
+      </div>
+    </div></section>
+
+    <!-- UNITS -->
+    <section id="vUnit" hidden><div class="wrap">
+      <div class="chips" id="uCats" aria-label="Loại đơn vị"></div>
+      <div class="pair">
+        <div class="side from">
+          <div class="side-top"><span class="lbl">Từ</span></div>
+          <button class="pick" id="uFromBtn" type="button"></button>
+          <div class="amt" id="uAmt" tabindex="0" role="textbox" aria-label="Giá trị"></div>
+          <div class="sub-eq num" id="uEq"></div>
+        </div>
+        <div class="side to">
+          <button class="swap" id="uSwap" type="button" aria-label="Đảo chiều">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 20l-4-4M7 20l4-4M17 20V4M17 4l-4 4M17 4l4 4"/></svg>
+          </button>
+          <div class="side-top"><span class="lbl">Sang</span></div>
+          <button class="pick" id="uToBtn" type="button"></button>
+          <button class="out" id="uOut" type="button" aria-label="Kết quả, chạm để chép">0</button>
+        </div>
+      </div>
+      <div class="rate-row"><div class="rate-txt num" id="uRate"></div></div>
+      <div class="list-h"><h2>Bằng với</h2><span class="hint">Chạm để chọn</span></div>
+      <div class="list" id="uList"></div>
+    </div></section>
+  </main>
+
+  <div class="kp" id="kp"><div class="wrap" id="kpKeys">
+    <button class="key fn" data-k="C" type="button">C</button>
+    <button class="key op" data-k="÷" type="button" aria-label="chia">÷</button>
+    <button class="key op" data-k="×" type="button" aria-label="nhân">×</button>
+    <button class="key fn" data-k="B" type="button" aria-label="Xóa lùi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12zM17 9l-6 6M11 9l6 6"/></svg></button>
+    <button class="key" data-k="7" type="button">7</button>
+    <button class="key" data-k="8" type="button">8</button>
+    <button class="key" data-k="9" type="button">9</button>
+    <button class="key op" data-k="−" type="button" aria-label="trừ">−</button>
+    <button class="key" data-k="4" type="button">4</button>
+    <button class="key" data-k="5" type="button">5</button>
+    <button class="key" data-k="6" type="button">6</button>
+    <button class="key op" data-k="+" type="button" aria-label="cộng">+</button>
+    <button class="key" data-k="1" type="button">1</button>
+    <button class="key" data-k="2" type="button">2</button>
+    <button class="key" data-k="3" type="button">3</button>
+    <button class="key eq" data-k="=" type="button">=</button>
+    <button class="key" data-k="000" type="button">000</button>
+    <button class="key" data-k="0" type="button">0</button>
+    <button class="key" data-k="," type="button">,</button>
+    <button class="key fn" data-k="H" type="button" aria-label="Ẩn bàn phím"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+  </div></div>
+  <div class="kp-show" id="kpShow" hidden><button type="button" id="kpShowBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>Hiện bàn phím</button></div>
+
+  <nav><div class="wrap" role="tablist">
+    <button class="tab" id="tCur" role="tab" type="button" aria-selected="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 8.5c-.6-.9-1.7-1.5-3-1.5-1.7 0-3 .9-3 2.3 0 3.2 6 1.7 6 4.9 0 1.4-1.3 2.3-3 2.3-1.3 0-2.5-.6-3.1-1.6M12 5.5V7M12 17v1.5"/></svg>
+      Tiền tệ
+    </button>
+    <button class="tab" id="tUnit" role="tab" type="button" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6.5 8v3M10 8v4.5M13.5 8v3M17 8v4.5"/></svg>
+      Đơn vị đo
+    </button>
+  </div></nav>
+</div>
+
+<div class="scrim" id="scrim" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-h">
+      <div class="grab"></div>
+      <div class="sheet-t"><b id="sheetTitle">Chọn</b>
+        <button class="x" id="sheetX" type="button" aria-label="Đóng"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <input class="search" id="sheetSearch" type="search" placeholder="Tìm: USD, yên, euro…" autocomplete="off">
+    </div>
+    <div class="sheet-b" id="sheetBody"></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+/* ---------- data ---------- */
+var FALLBACK = {updated:"2026-10-19T00:02:32Z", source:"open.er-api.com", rates:{USD:1,VND:25869.403572,EUR:0.890861,JPY:157.911394,CNY:6.69274,KRW:1333.598991,GBP:0.750306,AUD:1.435811,SGD:1.279456,THB:33.419704,HKD:7.848103,TWD:32.446228,CAD:1.41317,CHF:0.824293,MYR:4.081565,IDR:18052.884411,PHP:63.065741,INR:95.184915,NZD:1.768993,LAK:22329.647611,KHR:4053.729877,RUB:83.208148,AED:3.6725,SEK:9.91606}};
+var CUR = [
+ ["VND","Đồng Việt Nam","🇻🇳",0],["USD","Đô la Mỹ","🇺🇸",2],["EUR","Euro","🇪🇺",2],["JPY","Yên Nhật","🇯🇵",0],
+ ["KRW","Won Hàn Quốc","🇰🇷",0],["CNY","Nhân dân tệ","🇨🇳",2],["THB","Baht Thái","🇹🇭",2],["SGD","Đô la Singapore","🇸🇬",2],
+ ["TWD","Đài tệ","🇹🇼",0],["HKD","Đô la Hồng Kông","🇭🇰",2],["GBP","Bảng Anh","🇬🇧",2],["AUD","Đô la Úc","🇦🇺",2],
+ ["CAD","Đô la Canada","🇨🇦",2],["CHF","Franc Thụy Sĩ","🇨🇭",2],["NZD","Đô la New Zealand","🇳🇿",2],["MYR","Ringgit Malaysia","🇲🇾",2],
+ ["IDR","Rupiah Indonesia","🇮🇩",0],["PHP","Peso Philippines","🇵🇭",2],["INR","Rupee Ấn Độ","🇮🇳",2],["LAK","Kíp Lào","🇱🇦",0],
+ ["KHR","Riel Campuchia","🇰🇭",0],["RUB","Rúp Nga","🇷🇺",2],["AED","Dirham UAE","🇦🇪",2],["SEK","Krona Thụy Điển","🇸🇪",2]
+];
+var CM = {}; CUR.forEach(function(c){CM[c[0]]={code:c[0],name:c[1],flag:c[2],dp:c[3]};});
+var FAV = ["VND","USD","EUR","JPY","KRW","CNY","THB","SGD","TWD","AUD"];
+
+function L(id,name,sym,f){return {id:id,name:name,sym:sym,f:f};}
+var CATS = [
+ {id:"len",name:"Chiều dài",units:[L("mm","Milimét","mm",.001),L("cm","Centimét","cm",.01),L("m","Mét","m",1),L("km","Kilômét","km",1000),L("in","Inch","in",.0254),L("ft","Foot","ft",.3048),L("yd","Yard","yd",.9144),L("mi","Dặm","mi",1609.344),L("nmi","Hải lý","nmi",1852),L("um","Micrômét","µm",1e-6)],d:["m","ft"]},
+ {id:"mass",name:"Khối lượng",units:[L("mg","Miligam","mg",.001),L("g","Gam","g",1),L("lang","Lạng","lạng",100),L("kg","Kilôgam (cân, ký)","kg",1000),L("yen","Yến","yến",1e4),L("ta","Tạ","tạ",1e5),L("t","Tấn","tấn",1e6),L("oz","Ounce","oz",28.349523125),L("lb","Pound","lb",453.59237),L("chi","Chỉ vàng","chỉ",3.75),L("luong","Lượng (cây) vàng","lượng",37.5),L("ozt","Ounce vàng (troy)","ozt",31.1034768),L("ct","Carat","ct",.2)],d:["kg","lb"]},
+ {id:"temp",name:"Nhiệt độ",units:[{id:"C",name:"Độ C",sym:"°C",to:function(v){return v;},from:function(v){return v;}},{id:"F",name:"Độ F",sym:"°F",to:function(v){return (v-32)*5/9;},from:function(v){return v*9/5+32;}},{id:"K",name:"Kelvin",sym:"K",to:function(v){return v-273.15;},from:function(v){return v+273.15;}}],d:["C","F"],neg:true},
+ {id:"area",name:"Diện tích",units:[L("cm2","Centimét vuông","cm²",1e-4),L("m2","Mét vuông","m²",1),L("ha","Héc-ta","ha",1e4),L("km2","Kilômét vuông","km²",1e6),L("saobb","Sào Bắc Bộ","sào BB",360),L("saotb","Sào Trung Bộ","sào TB",500),L("cong","Công đất Nam Bộ","công",1000),L("mau","Mẫu Bắc Bộ","mẫu",3600),L("ft2","Foot vuông","ft²",.09290304),L("in2","Inch vuông","in²",.00064516),L("yd2","Yard vuông","yd²",.83612736),L("ac","Mẫu Anh (acre)","ac",4046.8564224)],d:["m2","saobb"]},
+ {id:"vol",name:"Thể tích",units:[L("ml","Mililít","ml",.001),L("l","Lít","l",1),L("m3","Mét khối","m³",1000),L("cm3","Centimét khối (cc)","cm³",.001),L("tsp","Thìa cà phê (US)","tsp",.00492892159375),L("tbsp","Thìa canh (US)","tbsp",.01478676478125),L("cup","Cốc (US)","cup",.2365882365),L("floz","Ounce chất lỏng (US)","fl oz",.0295735295625),L("pt","Pint (US)","pt",.473176473),L("gal","Gallon (US)","gal",3.785411784),L("galuk","Gallon (Anh)","gal UK",4.54609),L("bbl","Thùng dầu","bbl",158.987294928)],d:["l","gal"]},
+ {id:"speed",name:"Tốc độ",units:[L("kmh","Kilômét/giờ","km/h",1/3.6),L("ms","Mét/giây","m/s",1),L("mph","Dặm/giờ","mph",.44704),L("kn","Hải lý/giờ (knot)","kn",1852/3600),L("fts","Foot/giây","ft/s",.3048),L("mach","Mach","Mach",343)],d:["kmh","mph"]},
+ {id:"time",name:"Thời gian",units:[L("ms","Mili giây","ms",.001),L("s","Giây","s",1),L("min","Phút","phút",60),L("h","Giờ","giờ",3600),L("d","Ngày","ngày",86400),L("wk","Tuần","tuần",604800),L("mo","Tháng (TB)","tháng",2629800),L("yr","Năm","năm",31557600)],d:["h","min"]},
+ {id:"data",name:"Dữ liệu",units:[L("bit","Bit","bit",.125),L("B","Byte","B",1),L("KB","Kilobyte","KB",1e3),L("MB","Megabyte","MB",1e6),L("GB","Gigabyte","GB",1e9),L("TB","Terabyte","TB",1e12),L("KiB","Kibibyte","KiB",1024),L("MiB","Mebibyte","MiB",1048576),L("GiB","Gibibyte","GiB",1073741824),L("TiB","Tebibyte","TiB",1099511627776)],d:["GB","MB"]},
+ {id:"press",name:"Áp suất",units:[L("Pa","Pascal","Pa",1),L("kPa","Kilopascal","kPa",1e3),L("MPa","Megapascal","MPa",1e6),L("bar","Bar","bar",1e5),L("atm","Átmốtphe","atm",101325),L("psi","PSI (lốp xe)","psi",6894.757293168),L("mmHg","Milimét thủy ngân","mmHg",133.322387415),L("kgf","Kgf/cm²","kgf/cm²",98066.5)],d:["psi","bar"]},
+ {id:"energy",name:"Năng lượng",units:[L("J","Jun","J",1),L("kJ","Kilojun","kJ",1e3),L("cal","Calo","cal",4.184),L("kcal","Kilocalo","kcal",4184),L("Wh","Oát giờ","Wh",3600),L("kWh","Kilooát giờ (số điện)","kWh",3.6e6),L("BTU","BTU","BTU",1055.05585262),L("eV","Electronvolt","eV",1.602176634e-19)],d:["kcal","kJ"]},
+ {id:"power",name:"Công suất",units:[L("W","Oát","W",1),L("kW","Kilooát","kW",1e3),L("PS","Mã lực (PS)","PS",735.49875),L("hp","Mã lực Anh (hp)","hp",745.69987158),L("BTUh","BTU/giờ (điều hòa)","BTU/h",.29307107)],d:["kW","PS"]}
+];
+var CATM = {}; CATS.forEach(function(c){CATM[c.id]=c; c.um={}; c.units.forEach(function(u){c.um[u.id]=u;});});
+
+/* ---------- state ---------- */
+var S = {tab:"cur", kp:true, c:{ex:"100", from:"USD", to:"VND"}, u:{cat:"len", ex:"1", pairs:{}}, own:{}};
+var LIVE = {rates:FALLBACK.rates, updated:FALLBACK.updated, source:FALLBACK.source, online:false};
+try{ var saved = JSON.parse(localStorage.getItem("doinhanh2")||"null"); if(saved){ S.tab=saved.tab||S.tab; S.kp=saved.kp!==false; Object.assign(S.c,saved.c||{}); Object.assign(S.u,saved.u||{}); S.own=saved.own||{}; } }catch(e){}
+if(!CM[S.c.from]) S.c.from="USD"; if(!CM[S.c.to]) S.c.to="VND"; if(!CATM[S.u.cat]) S.u.cat="len";
+try{ var lr = JSON.parse(localStorage.getItem("doinhanh_rates")||"null"); if(lr && lr.rates && lr.updated > LIVE.updated){ LIVE.rates=lr.rates; LIVE.updated=lr.updated; LIVE.source=lr.source; } }catch(e){}
+function save(){ try{ localStorage.setItem("doinhanh2", JSON.stringify(S)); }catch(e){} }
+
+/* ---------- expression engine ---------- */
+var OPS = "+−×÷";
+function isOp(ch){ return OPS.indexOf(ch)>=0; }
+function lastTok(ex){ var m = ex.match(/[0-9,]*$/); return m?m[0]:""; }
+function evalEx(ex){
+  if(!ex) return NaN;
+  ex = ex.replace(/[+−×÷]+$/,"");
+  var toks = [], i=0, neg=false;
+  while(i<ex.length){
+    var ch=ex[i];
+    if(isOp(ch)){
+      if((toks.length===0 || typeof toks[toks.length-1]==="string") && ch==="−"){ neg=!neg; i++; continue; }
+      toks.push(ch); i++; continue;
+    }
+    var j=i; while(j<ex.length && !isOp(ex[j])) j++;
+    var n = parseFloat(ex.slice(i,j).replace(",", ".")); if(isNaN(n)) n=0;
+    toks.push(neg?-n:n); neg=false; i=j;
+  }
+  if(!toks.length || typeof toks[0]!=="number") return NaN;
+  var st=[toks[0]];
+  for(var k=1;k<toks.length;k+=2){
+    var op=toks[k], v=toks[k+1]; if(typeof v!=="number") break;
+    if(op==="×") st[st.length-1]*=v;
+    else if(op==="÷") st[st.length-1]/=v;
+    else st.push(op==="−"?-v:v);
+  }
+  return st.reduce(function(a,b){return a+b;},0);
+}
+function hasOp(ex){ return /[0-9,][+−×÷]/.test(ex); }
+function exHTML(ex){
+  if(!ex) return '<span class="ph">0</span><span class="caret"></span>';
+  var out="", buf="";
+  function flush(){ if(!buf) return; var p=buf.split(","); out+=esc(p[0].replace(/\B(?=(\d{3})+(?!\d))/g,".")+(p.length>1?","+p[1]:"")); buf=""; }
+  for(var i=0;i<ex.length;i++){ var ch=ex[i]; if(isOp(ch)){ flush(); out+='<span class="op">'+ch+'</span>'; } else buf+=ch; }
+  flush(); return out+'<span class="caret"></span>';
+}
+function exPlainLen(ex){ return ex.length + Math.floor(ex.length/3); }
+function numToEx(x){
+  if(!isFinite(x)) return "";
+  var a=Math.abs(x), s;
+  if(a>=1e15) s=Math.round(x).toString();
+  else s = parseFloat(x.toPrecision(12)).toString();
+  if(/e/.test(s)) s = x.toFixed(10).replace(/\.?0+$/,"");
+  return s.replace("-","−").replace(".",",");
+}
+function pressKey(ex, k, allowNeg){
+  var t = lastTok(ex), last = ex.slice(-1);
+  if(k==="C") return "";
+  if(k==="B") return ex.slice(0,-1);
+  if(k==="="){ var v=evalEx(ex); return isFinite(v) ? numToEx(v) : ex; }
+  if(isOp(k)){
+    if(!ex){ return (k==="−" && allowNeg) ? "−" : ex; }
+    if(isOp(last)){ if(ex.length===1) return ex; return ex.slice(0,-1)+k; }
+    if(last===",") ex=ex.slice(0,-1);
+    return ex+k;
+  }
+  if(k===","){ if(t.indexOf(",")>=0) return ex; return ex+(t===""?"0,":","); }
+  // digits
+  var digits = t.replace(",","").length;
+  if(k==="000"){ if(t===""||t==="0") return ex; if(digits+3>15) return ex; return ex+"000"; }
+  if(digits>=15) return ex;
+  if(t==="0") return ex.slice(0,-1)+k;
+  return ex+k;
+}
+
+/* ---------- format helpers ---------- */
+function fmt(x, dp){
+  if(!isFinite(x)) return "—";
+  var a = Math.abs(x);
+  if(a!==0 && (a<1e-6 || a>=1e15)) return x.toExponential(4).replace(".",",").replace(/e\+?/," × 10^");
+  var o;
+  if(dp!==undefined) o = (a>0 && a<1) ? {maximumSignificantDigits:3} : {maximumFractionDigits:dp};
+  else if(a>=1000) o={maximumFractionDigits:2};
+  else if(a>=1) o={maximumFractionDigits:4};
+  else o={maximumSignificantDigits:6};
+  var s = new Intl.NumberFormat("vi-VN", o).format(x);
+  return s==="-0"?"0":s;
+}
+function parseLoose(str){
+  str=(str||"").replace(/[^\d.,-]/g,"");
+  if(str.indexOf(",")>=0){ var i=str.indexOf(","); str=str.slice(0,i).replace(/\./g,"")+"."+str.slice(i+1).replace(/[.,]/g,""); }
+  else { var p=str.split("."); if(!(p.length===2 && p[1].length!==3)) str=str.replace(/\./g,""); }
+  return parseFloat(str);
+}
+function sizeCls(el, len){ el.classList.toggle("s", len>11 && len<=15); el.classList.toggle("xs", len>15); }
+var $ = function(id){ return document.getElementById(id); };
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+var CHEV = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+function tzFmt(iso, withTime){
+  try{ var o={timeZone:"Asia/Ho_Chi_Minh",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}, p={};
+    new Intl.DateTimeFormat("en-GB",o).formatToParts(new Date(iso)).forEach(function(x){p[x.type]=x.value;});
+    return p.day+"/"+p.month+(withTime?" lúc "+p.hour+":"+p.minute:""); }catch(e){ return String(iso).slice(0,10); }
+}
+
+/* ---------- currency ---------- */
+function marketRate(a,b){ var r=LIVE.rates; return (r[b]||NaN)/(r[a]||NaN); }
+function rate(a,b){
+  if(a===b) return 1;
+  if(S.own[a+"_"+b]) return S.own[a+"_"+b];
+  if(S.own[b+"_"+a]) return 1/S.own[b+"_"+a];
+  return marketRate(a,b);
+}
+function isOwn(a,b){ return !!(S.own[a+"_"+b]||S.own[b+"_"+a]); }
+function rateLine(a,b,r){ return r<0.01 ? "1 "+b+" = "+fmt(1/r, 1/r>=100?2:4)+" "+a : "1 "+a+" = "+fmt(r, r>=100?2:4)+" "+b; }
+function pickCur(m){ return '<span class="flag" aria-hidden="true">'+m.flag+'</span><span class="code">'+m.code+'</span><span class="nm">'+esc(m.name)+'</span>'+CHEV; }
+function pickUnit(u){ return '<span class="code">'+esc(u.sym)+'</span><span class="nm">'+esc(u.name)+'</span>'+CHEV; }
+
+function renderAmt(el, eqEl, ex, active){
+  el.innerHTML = exHTML(ex); sizeCls(el, exPlainLen(ex)); el.classList.toggle("on", active);
+  var v = evalEx(ex);
+  eqEl.textContent = hasOp(ex) && isFinite(v) ? "= "+fmt(v) : "";
+  eqEl.hidden = !eqEl.textContent;
+  return isFinite(v)?v:0;
+}
+function renderCur(){
+  var f=CM[S.c.from], t=CM[S.c.to];
+  $("cFromBtn").innerHTML = pickCur(f); $("cToBtn").innerHTML = pickCur(t);
+  var amt = renderAmt($("cAmt"), $("cEq"), S.c.ex, S.kp && S.tab==="cur");
+  var r = rate(f.code,t.code), o = fmt(amt*r, t.dp);
+  $("cOut").textContent = o; sizeCls($("cOut"), o.length);
+  var own = isOwn(f.code,t.code);
+  $("cRate").innerHTML = esc(rateLine(f.code,t.code,r)) + (own?'<span class="tag-own">Tỷ giá riêng</span>':'') +
+    '<small>'+esc(own ? "Thị trường: "+rateLine(f.code,t.code,marketRate(f.code,t.code)) : "Thị trường · cập nhật "+tzFmt(LIVE.updated,true))+'</small>';
+  $("gLink").href = "https://www.google.com/search?q="+encodeURIComponent(f.code+" to "+t.code);
+  var bigC = ["VND","IDR","KRW","LAK","KHR"].indexOf(f.code)>=0, midC = ["JPY","TWD","INR","PHP","THB","RUB"].indexOf(f.code)>=0;
+  var q = bigC ? [[100000,"100k"],[500000,"500k"],[1000000,"1 triệu"],[10000000,"10 triệu"],[100000000,"100 triệu"]]
+        : midC ? [[100,"100"],[1000,"1.000"],[5000,"5.000"],[10000,"10.000"]]
+        : [[1,"1"],[10,"10"],[50,"50"],[100,"100"],[1000,"1.000"]];
+  $("cQuick").innerHTML = q.map(function(x){ return '<button class="chip" type="button" data-v="'+x[0]+'" aria-pressed="'+(S.c.ex===String(x[0]))+'">'+x[1]+' '+f.code+'</button>'; }).join("");
+  var codes = FAV.filter(function(c){return c!==f.code;}).slice(0,8);
+  if(codes.indexOf(t.code)<0) codes.unshift(t.code);
+  $("cList").innerHTML = codes.map(function(c){ var m=CM[c];
+    return '<button class="row'+(c===t.code?' on':'')+'" type="button" data-c="'+c+'"><span class="c">'+m.flag+' '+c+'</span><span class="n">'+esc(m.name)+'</span><span class="v">'+fmt(amt*rate(f.code,c), m.dp)+'</span></button>'; }).join("");
+}
+
+/* ---------- units ---------- */
+function upair(){ var c=CATM[S.u.cat], p=S.u.pairs[c.id]; if(!p||!c.um[p[0]]||!c.um[p[1]]){ p=c.d.slice(); S.u.pairs[c.id]=p; } return p; }
+function toBase(u,v){ return u.to?u.to(v):v*u.f; }
+function fromBase(u,v){ return u.from?u.from(v):v/u.f; }
+function conv(c,a,b,v){ return fromBase(c.um[b], toBase(c.um[a], v)); }
+function renderUnit(){
+  var c=CATM[S.u.cat], p=upair(), f=c.um[p[0]], t=c.um[p[1]];
+  $("uCats").innerHTML = CATS.map(function(x){ return '<button class="chip" type="button" data-cat="'+x.id+'" aria-pressed="'+(x.id===c.id)+'">'+esc(x.name)+'</button>'; }).join("");
+  $("uFromBtn").innerHTML = pickUnit(f); $("uToBtn").innerHTML = pickUnit(t);
+  var v = renderAmt($("uAmt"), $("uEq"), S.u.ex, S.kp && S.tab==="unit");
+  var o = fmt(conv(c,f.id,t.id,v));
+  $("uOut").textContent=o; sizeCls($("uOut"),o.length);
+  $("uRate").textContent = c.id==="temp" ? "°F = °C × 9/5 + 32  ·  K = °C + 273,15" : "1 "+f.sym+" = "+fmt(conv(c,f.id,t.id,1))+" "+t.sym;
+  $("uList").innerHTML = c.units.filter(function(u){return u.id!==f.id;}).map(function(u){
+    return '<button class="row'+(u.id===t.id?' on':'')+'" type="button" data-u="'+u.id+'"><span class="c">'+esc(u.sym)+'</span><span class="n">'+esc(u.name)+'</span><span class="v">'+fmt(conv(c,f.id,u.id,v))+'</span></button>'; }).join("");
+}
+function renderActive(){ if(S.tab==="cur") renderCur(); else renderUnit(); }
+
+/* ---------- tabs + keypad ---------- */
+function setKp(on){ S.kp=on; $("kp").hidden=!on; $("kpShow").hidden=on; renderActive(); save(); }
+function setTab(t){
+  S.tab=t; $("vCur").hidden = t!=="cur"; $("vUnit").hidden = t!=="unit";
+  $("tCur").setAttribute("aria-selected", t==="cur"); $("tUnit").setAttribute("aria-selected", t==="unit");
+  $("ratePill").hidden = t!=="cur";
+  $("main").scrollTop=0; renderActive(); save();
+}
+$("tCur").onclick=function(){setTab("cur");}; $("tUnit").onclick=function(){setTab("unit");};
+function key(k){
+  if(k==="H"){ setKp(false); return; }
+  if(S.tab==="cur"){ S.c.ex = pressKey(S.c.ex, k, false); renderCur(); }
+  else { S.u.ex = pressKey(S.u.ex, k, !!CATM[S.u.cat].neg); renderUnit(); }
+  save();
+}
+$("kpKeys").addEventListener("click", function(e){ var b=e.target.closest(".key"); if(b) key(b.dataset.k); });
+$("kpShowBtn").onclick=function(){ setKp(true); };
+$("cAmt").onclick=$("uAmt").onclick=function(){ if(!S.kp) setKp(true); };
+document.addEventListener("keydown", function(e){
+  if(sheetMode){ if(e.key==="Escape") closeSheet(); return; }
+  if(e.metaKey||e.ctrlKey||e.altKey) return;
+  var m = {"+":"+","-":"−","*":"×","x":"×","/":"÷",",":",",".":",","Backspace":"B","Delete":"C","Escape":"C","Enter":"=","=":"="}[e.key];
+  if(/^[0-9]$/.test(e.key)) m=e.key;
+  if(!m) return;
+  e.preventDefault(); key(m);
+});
+document.addEventListener("paste", function(e){
+  if(sheetMode) return;
+  var txt=(e.clipboardData||window.clipboardData).getData("text"); var v=parseLoose(txt);
+  if(!isFinite(v)) return; e.preventDefault();
+  var ex=numToEx(v); if(S.tab==="cur") S.c.ex=ex.replace("−",""); else S.u.ex=ex; renderActive(); save();
+});
+
+$("cSwap").onclick=function(){ var a=S.c.from; S.c.from=S.c.to; S.c.to=a; renderCur(); save(); };
+$("uSwap").onclick=function(){ upair().reverse(); renderUnit(); save(); };
+$("cQuick").onclick=function(e){ var b=e.target.closest(".chip"); if(!b) return; S.c.ex=b.dataset.v; renderCur(); save(); };
+$("cList").onclick=function(e){ var b=e.target.closest(".row"); if(!b) return; S.c.to=b.dataset.c; renderCur(); save(); };
+$("uCats").onclick=function(e){ var b=e.target.closest(".chip"); if(!b) return; S.u.cat=b.dataset.cat; if(!CATM[S.u.cat].neg) S.u.ex=S.u.ex.replace(/^−/,""); renderUnit(); save(); var nb=$("uCats").querySelector('[data-cat="'+S.u.cat+'"]'); if(nb) nb.scrollIntoView({block:"nearest",inline:"center"}); };
+$("uList").onclick=function(e){ var b=e.target.closest(".row"); if(!b) return; upair()[1]=b.dataset.u; renderUnit(); save(); };
+
+/* ---------- copy + toast ---------- */
+var tT; function toast(m){ var t=$("toast"); t.textContent=m; t.hidden=false; clearTimeout(tT); tT=setTimeout(function(){t.hidden=true;},1700); }
+function copyNum(el){
+  var txt=el.textContent;
+  var fail=function(){ var r=document.createRange(); r.selectNodeContents(el); var s=getSelection(); s.removeAllRanges(); s.addRange(r); toast("Đã chọn số, nhấn giữ để chép"); };
+  try{ navigator.clipboard.writeText(txt).then(function(){toast("Đã chép "+txt);}, fail); }catch(e){ fail(); }
+}
+$("cOut").onclick=function(){copyNum(this);}; $("uOut").onclick=function(){copyNum(this);};
+
+/* ---------- sheet ---------- */
+var sheetMode=null;
+function openSheet(mode){
+  sheetMode=mode; $("scrim").hidden=false; var s=$("sheetSearch"); s.value="";
+  var isRate = mode==="rate"; s.hidden = isRate;
+  $("sheetTitle").textContent = isRate ? "Tỷ giá riêng" : mode.side==="from" ? (mode.kind==="cur"?"Đổi từ tiền":"Đổi từ đơn vị") : (mode.kind==="cur"?"Đổi sang tiền":"Đổi sang đơn vị");
+  if(isRate) renderRateForm(); else { renderSheetList(); $("sheetBody").scrollTop=0; }
+}
+function closeSheet(){ $("scrim").hidden=true; sheetMode=null; }
+$("sheetX").onclick=closeSheet;
+$("scrim").addEventListener("click", function(e){ if(e.target===this) closeSheet(); });
+$("sheetSearch").addEventListener("input", renderSheetList);
+function norm(s){ return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/đ/g,"d"); }
+function renderSheetList(){
+  var m=sheetMode, q=norm($("sheetSearch").value.trim()), html="";
+  if(m.kind==="cur"){
+    var cur = m.side==="from"?S.c.from:S.c.to;
+    html = CUR.filter(function(c){ return !q || norm(c[0]+" "+c[1]).indexOf(q)>=0; }).map(function(c){
+      var right = c[0]===S.c.from ? "" : "1 "+S.c.from+" = "+fmt(rate(S.c.from,c[0]), rate(S.c.from,c[0])>=100?0:4);
+      return '<button class="row'+(c[0]===cur?' on':'')+'" type="button" data-k="'+c[0]+'"><span class="c">'+c[2]+' '+c[0]+'</span><span class="n">'+esc(c[1])+'</span><span class="v hint">'+esc(right)+'</span></button>'; }).join("");
+  } else {
+    var c=CATM[S.u.cat], p=upair(), curU = m.side==="from"?p[0]:p[1];
+    html = c.units.filter(function(u){ return !q || norm(u.name+" "+u.sym).indexOf(q)>=0; }).map(function(u){
+      return '<button class="row'+(u.id===curU?' on':'')+'" type="button" data-k="'+u.id+'"><span class="c">'+esc(u.sym)+'</span><span class="n">'+esc(u.name)+'</span></button>'; }).join("");
+  }
+  $("sheetBody").innerHTML = html || '<p class="note" style="padding:20px 16px">Không tìm thấy. Thử gõ mã như “USD” hoặc tên như “yên”.</p>';
+}
+$("sheetBody").addEventListener("click", function(e){
+  if(sheetMode==="rate") return;
+  var b=e.target.closest(".row"); if(!b) return; var k=b.dataset.k, m=sheetMode;
+  if(m.kind==="cur"){
+    if(m.side==="from"){ if(k===S.c.to) S.c.to=S.c.from; S.c.from=k; } else { if(k===S.c.from) S.c.from=S.c.to; S.c.to=k; }
+    renderCur();
+  } else {
+    var p=upair(); if(m.side==="from"){ if(k===p[1]) p[1]=p[0]; p[0]=k; } else { if(k===p[0]) p[0]=p[1]; p[1]=k; }
+    renderUnit();
+  }
+  save(); closeSheet();
+});
+$("cFromBtn").onclick=function(){openSheet({kind:"cur",side:"from"});};
+$("cToBtn").onclick=function(){openSheet({kind:"cur",side:"to"});};
+$("uFromBtn").onclick=function(){openSheet({kind:"unit",side:"from"});};
+$("uToBtn").onclick=function(){openSheet({kind:"unit",side:"to"});};
+$("cRateBtn").onclick=function(){openSheet("rate");};
+
+function renderRateForm(){
+  var a=S.c.from, b=S.c.to, flip = marketRate(a,b)<0.01;
+  var x = flip?b:a, y = flip?a:b, cur = rate(x,y), mk = marketRate(x,y);
+  $("sheetBody").innerHTML =
+    '<form class="rate-form" id="rateForm">'+
+    '<p class="note" style="padding:0">Nhập giá ngân hàng hoặc tiệm vàng báo cho bạn. Chỉ lưu trên điện thoại này.</p>'+
+    '<label class="rate-line" for="ownRate"><span>1 '+x+' =</span><input id="ownRate" type="text" inputmode="decimal" autocomplete="off" value="'+fmt(cur, cur>=100?2:4)+'"><span>'+y+'</span></label>'+
+    '<p class="note" style="padding:0">Thị trường: 1 '+x+' = '+fmt(mk, mk>=100?2:4)+' '+y+'</p>'+
+    '<button class="btn pri" type="submit">Dùng tỷ giá này</button>'+
+    (isOwn(a,b)?'<button class="btn sec" type="button" id="rateReset">Dùng lại tỷ giá thị trường</button>':'')+
+    '</form>';
+  $("rateForm").addEventListener("submit", function(e){ e.preventDefault(); var v=parseLoose($("ownRate").value);
+    if(!(v>0)){ toast("Nhập một số lớn hơn 0"); return; }
+    delete S.own[y+"_"+x]; S.own[x+"_"+y]=v; save(); renderCur(); closeSheet(); toast("Đã lưu tỷ giá riêng"); });
+  var r=$("rateReset"); if(r) r.onclick=function(){ delete S.own[a+"_"+b]; delete S.own[b+"_"+a]; save(); renderCur(); closeSheet(); toast("Đang dùng tỷ giá thị trường"); };
+  setTimeout(function(){ var i=$("ownRate"); i.focus(); i.select(); },60);
+}
+
+/* ---------- live rates ---------- */
+var busy=false, lastTry=0;
+function renderPill(){
+  var p=$("ratePill"), ageH=(Date.now()-new Date(LIVE.updated).getTime())/36e5;
+  p.classList.toggle("busy", busy);
+  p.classList.toggle("stale", !busy && ageH>48);
+  p.textContent = busy ? "Đang cập nhật…" : (LIVE.online ? "Trực tuyến · " : (ageH>48 ? "Tỷ giá cũ · " : "Tỷ giá · ")) + tzFmt(LIVE.updated,false);
+}
+function applyRates(d, online){
+  if(!d || typeof d.rates!=="object" || !d.updated) return false;
+  var ok={}, n=0; for(var k in d.rates){ var v=+d.rates[k]; if(CM[k] && v>0 && isFinite(v)){ ok[k]=v; n++; } }
+  if(n<10 || !(ok.VND>10000 && ok.VND<50000)) return false;
+  ok.USD=1;
+  if(!online && LIVE.online && d.updated<=LIVE.updated) return false;
+  LIVE = {rates:Object.assign({}, FALLBACK.rates, ok), updated:d.updated, source:String(d.source||""), online:online||LIVE.online};
+  try{ localStorage.setItem("doinhanh_rates", JSON.stringify({rates:LIVE.rates, updated:LIVE.updated, source:LIVE.source})); }catch(e){}
+  renderCur(); renderPill(); return true;
+}
+function getJSON(url){
+  return new Promise(function(res, rej){
+    var ctl = window.AbortController ? new AbortController() : null;
+    var t = setTimeout(function(){ if(ctl) ctl.abort(); rej(new Error("timeout")); }, 7000);
+    fetch(url, ctl?{signal:ctl.signal, cache:"no-store"}:{cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(j){ clearTimeout(t); res(j); }, function(e){ clearTimeout(t); rej(e); });
+  });
+}
+var SOURCES = [
+  function(){ return getJSON("https://open.er-api.com/v6/latest/USD").then(function(j){
+    if(j.result!=="success") throw new Error("bad");
+    return {rates:j.rates, updated:new Date(j.time_last_update_unix*1000).toISOString(), source:"open.er-api.com"}; }); },
+  function(){ return getJSON("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json").then(function(j){
+    var r={}; for(var k in j.usd) r[k.toUpperCase()]=j.usd[k];
+    return {rates:r, updated:new Date(j.date+"T00:00:00Z").toISOString(), source:"fawazahmed0/currency-api"}; }); },
+  function(){ return getJSON("https://latest.currency-api.pages.dev/v1/currencies/usd.min.json").then(function(j){
+    var r={}; for(var k in j.usd) r[k.toUpperCase()]=j.usd[k];
+    return {rates:r, updated:new Date(j.date+"T00:00:00Z").toISOString(), source:"currency-api.pages.dev"}; }); }
+];
+function refresh(manual){
+  if(busy) return; busy=true; lastTry=Date.now(); renderPill();
+  var i=0;
+  (function next(){
+    if(i>=SOURCES.length){ busy=false; renderPill(); if(manual) toast(navigator.onLine===false ? "Không có mạng · đang dùng tỷ giá "+tzFmt(LIVE.updated,false) : "Chưa lấy được tỷ giá mới, thử lại sau"); return; }
+    SOURCES[i++]().then(function(d){ busy=false; if(applyRates(d,true)){ if(manual) toast("Đã cập nhật tỷ giá "+tzFmt(LIVE.updated,true)); } else next(); }, function(){ next(); });
+  })();
+}
+$("ratePill").onclick=function(){ refresh(true); };
+document.addEventListener("visibilitychange", function(){ if(!document.hidden && Date.now()-lastTry>3*36e5) refresh(false); });
+window.addEventListener("online", function(){ refresh(false); });
+
+/* inside Claude: shared store refreshed daily */
+(async function(){
+  try{
+    if(!window.claude || !window.claude.use) return;
+    var db = await window.claude.use("db"); if(!db) return;
+    db.doc("rates/latest").onSnapshot(function(s){ if(s.exists){ var d=s.data(); if(!LIVE.online || d.updated>LIVE.updated) applyRates(d,true); } }, function(){});
+  }catch(e){}
+})();
+
+/* ---------- boot ---------- */
+$("kp").hidden=!S.kp; $("kpShow").hidden=S.kp;
+setTab(S.tab); renderCur(); renderUnit(); renderPill(); refresh(false);
+window.__dn = {evalEx:evalEx, pressKey:pressKey, numToEx:numToEx, fmt:fmt};
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
+}
+</script>
+</body>
+</html>
