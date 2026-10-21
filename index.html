@@ -194,7 +194,7 @@ nav .wrap{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-block:6px}
       <div class="list-h"><h2>Số tiền này bằng</h2><span class="hint">Chạm để chọn</span></div>
       <div class="list" id="cList"></div>
 
-      <p class="note">Tỷ giá trung bình thị trường, tự cập nhật mỗi khi có mạng. Giá mua/bán ở ngân hàng chênh vài phần trăm; bấm <b>Tỷ giá riêng</b> để nhập đúng giá bạn được báo.</p>
+      <p class="note">Tỷ giá trung bình thị trường. App tự kiểm tra mỗi khi mở và 30 phút một lần; nguồn công bố tỷ giá mới mỗi ngày khoảng 7–8 giờ sáng. Giá mua/bán ở ngân hàng chênh vài phần trăm; bấm <b>Tỷ giá riêng</b> để nhập đúng giá bạn được báo.</p>
       <div class="links">
         <a class="btn-ghost" href="https://www.vietcombank.com.vn/vi-VN/KHCN/Cong-cu-tien-ich/Ty-gia" target="_blank" rel="noopener">Tỷ giá Vietcombank ↗</a>
         <a class="btn-ghost" id="gLink" href="https://www.google.com/search?q=USD+to+VND" target="_blank" rel="noopener">Xem trên Google ↗</a>
@@ -309,10 +309,10 @@ var CATM = {}; CATS.forEach(function(c){CATM[c.id]=c; c.um={}; c.units.forEach(f
 
 /* ---------- state ---------- */
 var S = {tab:"cur", kp:true, c:{ex:"100", from:"USD", to:"VND"}, u:{cat:"len", ex:"1", pairs:{}}, own:{}};
-var LIVE = {rates:FALLBACK.rates, updated:FALLBACK.updated, source:FALLBACK.source, online:false};
+var LIVE = {rates:FALLBACK.rates, updated:FALLBACK.updated, source:FALLBACK.source, checked:0};
 try{ var saved = JSON.parse(localStorage.getItem("doinhanh2")||"null"); if(saved){ S.tab=saved.tab||S.tab; S.kp=saved.kp!==false; Object.assign(S.c,saved.c||{}); Object.assign(S.u,saved.u||{}); S.own=saved.own||{}; } }catch(e){}
 if(!CM[S.c.from]) S.c.from="USD"; if(!CM[S.c.to]) S.c.to="VND"; if(!CATM[S.u.cat]) S.u.cat="len";
-try{ var lr = JSON.parse(localStorage.getItem("doinhanh_rates")||"null"); if(lr && lr.rates && lr.updated > LIVE.updated){ LIVE.rates=lr.rates; LIVE.updated=lr.updated; LIVE.source=lr.source; } }catch(e){}
+try{ var lr = JSON.parse(localStorage.getItem("doinhanh_rates")||"null"); if(lr && lr.rates && lr.updated > LIVE.updated){ LIVE.rates=lr.rates; LIVE.updated=lr.updated; LIVE.source=lr.source; LIVE.checked=+lr.checked||0; } }catch(e){}
 function save(){ try{ localStorage.setItem("doinhanh2", JSON.stringify(S)); }catch(e){} }
 
 /* ---------- expression engine ---------- */
@@ -437,7 +437,7 @@ function renderCur(){
   $("cOut").textContent = o; sizeCls($("cOut"), o.length);
   var own = isOwn(f.code,t.code);
   $("cRate").innerHTML = esc(rateLine(f.code,t.code,r)) + (own?'<span class="tag-own">Tỷ giá riêng</span>':'') +
-    '<small>'+esc(own ? "Thị trường: "+rateLine(f.code,t.code,marketRate(f.code,t.code)) : "Thị trường · cập nhật "+tzFmt(LIVE.updated,true))+'</small>';
+    '<small>'+esc(own ? "Thị trường: "+rateLine(f.code,t.code,marketRate(f.code,t.code)) : rateSub())+'</small>';
   $("gLink").href = "https://www.google.com/search?q="+encodeURIComponent(f.code+" to "+t.code);
   var bigC = ["VND","IDR","KRW","LAK","KHR"].indexOf(f.code)>=0, midC = ["JPY","TWD","INR","PHP","THB","RUB"].indexOf(f.code)>=0;
   var q = bigC ? [[100000,"100k"],[500000,"500k"],[1000000,"1 triệu"],[10000000,"10 triệu"],[100000000,"100 triệu"]]
@@ -581,60 +581,97 @@ function renderRateForm(){
 }
 
 /* ---------- live rates ---------- */
-var busy=false, lastTry=0;
+var busy=false, lastTry=0, status="idle", viaDb=false;
+var DAY_MS=864e5;
+function sameDayVN(t1,t2){ return tzFmt(new Date(t1).toISOString(),false)===tzFmt(new Date(t2).toISOString(),false); }
+function hhmm(t){ try{ var p={}; new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Ho_Chi_Minh",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(t)).forEach(function(x){p[x.type]=x.value;}); return p.hour+":"+p.minute; }catch(e){ return ""; } }
+function checkedLabel(){
+  if(!LIVE.checked) return "";
+  return sameDayVN(LIVE.checked, Date.now()) ? "lúc "+hhmm(LIVE.checked) : tzFmt(new Date(LIVE.checked).toISOString(),true);
+}
 function renderPill(){
   var p=$("ratePill"), ageH=(Date.now()-new Date(LIVE.updated).getTime())/36e5;
+  var fresh = status==="ok" && LIVE.checked && (Date.now()-LIVE.checked)<6*36e5;
   p.classList.toggle("busy", busy);
-  p.classList.toggle("stale", !busy && ageH>48);
-  p.textContent = busy ? "Đang cập nhật…" : (LIVE.online ? "Trực tuyến · " : (ageH>48 ? "Tỷ giá cũ · " : "Tỷ giá · ")) + tzFmt(LIVE.updated,false);
+  p.classList.toggle("stale", !busy && (ageH>48 || status==="fail"));
+  if(busy) p.textContent="Đang cập nhật…";
+  else if(fresh) p.textContent="Trực tuyến · "+hhmm(LIVE.checked);
+  else if(status==="fail") p.textContent="Ngoại tuyến · chạm để thử lại";
+  else p.textContent=(ageH>48?"Tỷ giá cũ · ":"Tỷ giá · ")+tzFmt(LIVE.updated,false);
 }
-function applyRates(d, online){
-  if(!d || typeof d.rates!=="object" || !d.updated) return false;
+function rateSub(){
+  var t="Tỷ giá thị trường ngày "+tzFmt(LIVE.updated,false);
+  if(LIVE.checked && !viaDb) t+=" · kiểm tra "+checkedLabel();
+  return t;
+}
+function cleanRates(d){
+  if(!d || typeof d.rates!=="object" || !d.updated) return null;
   var ok={}, n=0; for(var k in d.rates){ var v=+d.rates[k]; if(CM[k] && v>0 && isFinite(v)){ ok[k]=v; n++; } }
-  if(n<10 || !(ok.VND>10000 && ok.VND<50000)) return false;
-  ok.USD=1;
-  if(!online && LIVE.online && d.updated<=LIVE.updated) return false;
-  LIVE = {rates:Object.assign({}, FALLBACK.rates, ok), updated:d.updated, source:String(d.source||""), online:online||LIVE.online};
-  try{ localStorage.setItem("doinhanh_rates", JSON.stringify({rates:LIVE.rates, updated:LIVE.updated, source:LIVE.source})); }catch(e){}
-  renderCur(); renderPill(); return true;
+  if(n<10 || !(ok.VND>10000 && ok.VND<50000)) return null;
+  ok.USD=1; return {rates:ok, updated:d.updated, source:String(d.source||"")};
 }
+function applyRates(d){
+  var c=cleanRates(d); if(!c) return false;
+  if(c.updated < LIVE.updated && LIVE.checked) return false;
+  LIVE = {rates:Object.assign({}, FALLBACK.rates, c.rates), updated:c.updated, source:c.source, checked:LIVE.checked};
+  return true;
+}
+function persist(){ try{ localStorage.setItem("doinhanh_rates", JSON.stringify({rates:LIVE.rates, updated:LIVE.updated, source:LIVE.source, checked:LIVE.checked||0})); }catch(e){} }
 function getJSON(url){
   return new Promise(function(res, rej){
     var ctl = window.AbortController ? new AbortController() : null;
-    var t = setTimeout(function(){ if(ctl) ctl.abort(); rej(new Error("timeout")); }, 7000);
-    fetch(url, ctl?{signal:ctl.signal, cache:"no-store"}:{cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+    var t = setTimeout(function(){ if(ctl) ctl.abort(); rej(new Error("timeout")); }, 8000);
+    var sep = url.indexOf("?")>=0 ? "&" : "?";
+    fetch(url+sep+"t="+Math.floor(Date.now()/6e5), ctl?{signal:ctl.signal, cache:"no-store"}:{cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
       .then(function(j){ clearTimeout(t); res(j); }, function(e){ clearTimeout(t); rej(e); });
   });
 }
+function fawaz(j, src){ var r={}; for(var k in j.usd) r[k.toUpperCase()]=j.usd[k]; return {rates:r, updated:new Date(j.date+"T00:00:00Z").toISOString(), source:src}; }
 var SOURCES = [
   function(){ return getJSON("https://open.er-api.com/v6/latest/USD").then(function(j){
     if(j.result!=="success") throw new Error("bad");
     return {rates:j.rates, updated:new Date(j.time_last_update_unix*1000).toISOString(), source:"open.er-api.com"}; }); },
-  function(){ return getJSON("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json").then(function(j){
-    var r={}; for(var k in j.usd) r[k.toUpperCase()]=j.usd[k];
-    return {rates:r, updated:new Date(j.date+"T00:00:00Z").toISOString(), source:"fawazahmed0/currency-api"}; }); },
-  function(){ return getJSON("https://latest.currency-api.pages.dev/v1/currencies/usd.min.json").then(function(j){
-    var r={}; for(var k in j.usd) r[k.toUpperCase()]=j.usd[k];
-    return {rates:r, updated:new Date(j.date+"T00:00:00Z").toISOString(), source:"currency-api.pages.dev"}; }); }
+  function(){ return getJSON("https://latest.currency-api.pages.dev/v1/currencies/usd.min.json").then(function(j){ return fawaz(j,"currency-api.pages.dev"); }); },
+  function(){ return getJSON("https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json").then(function(j){ return fawaz(j,"jsdelivr/currency-api"); }); }
 ];
+/* Ask every source at once and keep the most recent day's rates. */
 function refresh(manual){
   if(busy) return; busy=true; lastTry=Date.now(); renderPill();
-  var i=0;
-  (function next(){
-    if(i>=SOURCES.length){ busy=false; renderPill(); if(manual) toast(navigator.onLine===false ? "Không có mạng · đang dùng tỷ giá "+tzFmt(LIVE.updated,false) : "Chưa lấy được tỷ giá mới, thử lại sau"); return; }
-    SOURCES[i++]().then(function(d){ busy=false; if(applyRates(d,true)){ if(manual) toast("Đã cập nhật tỷ giá "+tzFmt(LIVE.updated,true)); } else next(); }, function(){ next(); });
-  })();
+  var left=SOURCES.length, got=[];
+  function done(){
+    busy=false;
+    var best=null;
+    got.forEach(function(c){ if(!best || c.updated.slice(0,10) > best.updated.slice(0,10)) best=c; });
+    if(best){
+      applyRates(best); LIVE.checked=Date.now(); status="ok"; persist();
+      if(manual) toast("Đã kiểm tra · tỷ giá mới nhất ngày "+tzFmt(LIVE.updated,false));
+    } else {
+      if(!viaDb) status="fail";
+      if(manual && !viaDb) toast(navigator.onLine===false ? "Không có mạng · đang dùng tỷ giá ngày "+tzFmt(LIVE.updated,false) : "Chưa lấy được tỷ giá mới, thử lại sau");
+    }
+    renderCur(); renderPill();
+  }
+  SOURCES.forEach(function(fn, i){
+    fn().then(function(d){ var c=cleanRates(d); if(c){ c.order=i; got.push(c); } }, function(){})
+      .then(function(){ if(--left===0) done(); });
+  });
 }
 $("ratePill").onclick=function(){ refresh(true); };
-document.addEventListener("visibilitychange", function(){ if(!document.hidden && Date.now()-lastTry>3*36e5) refresh(false); });
+document.addEventListener("visibilitychange", function(){ if(!document.hidden && Date.now()-lastTry>30*6e4) refresh(false); });
 window.addEventListener("online", function(){ refresh(false); });
+window.addEventListener("pageshow", function(e){ if(e.persisted && Date.now()-lastTry>30*6e4) refresh(false); });
+setInterval(function(){ if(!document.hidden) refresh(false); }, 30*6e4);
+setInterval(renderPill, 6e4);
 
 /* inside Claude: shared store refreshed daily */
 (async function(){
   try{
     if(!window.claude || !window.claude.use) return;
     var db = await window.claude.use("db"); if(!db) return;
-    db.doc("rates/latest").onSnapshot(function(s){ if(s.exists){ var d=s.data(); if(!LIVE.online || d.updated>LIVE.updated) applyRates(d,true); } }, function(){});
+    db.doc("rates/latest").onSnapshot(function(s){
+      if(!s.exists) return; var d=s.data();
+      if(applyRates(d)){ viaDb=true; status="ok"; LIVE.checked=Date.now(); persist(); renderCur(); renderPill(); }
+    }, function(){});
   }catch(e){}
 })();
 

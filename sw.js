@@ -1,5 +1,5 @@
 // Đổi Nhanh – service worker: lets the app open without a connection.
-const CACHE = "doinhanh-v2";
+const CACHE = "doinhanh-v3";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
